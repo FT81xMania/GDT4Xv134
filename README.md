@@ -4,8 +4,8 @@
 
 # MexSpa Team contribution for [FT81xMania](https://ft81xmania.com/comunidad/)
 
-# GDTeensy4X Library
-Library only for Teensy 3.5/6, Teensy 4 and Teensy 4.1; based on Gameduino 23X library. This library can use the resources of the SdFat beta 2 of Greiman (https://github.com/greiman/SdFat-beta) in order to manage media files like assets, cells, avi, png, jpeg, jpg or avi files from the SDIO reader. Situable for **for FTDI EVE2 or EVE3 chips like FT810, FT811, FT813 or BT815.
+# GDT4Xv134 Library
+Library only for Teensy 3.5/6, Teensy 4 and Teensy 4.1; based on Gameduino 23X library. This library can use the resources of the SdFat beta 2 of Greiman (https://github.com/greiman/SdFat-beta) in order to manage media files like assets, cells, avi, png, jpeg, jpg or avi files from the SDIO reader. Situable for **for FTDI EVE2 or EVE3 chips like FT810, FT811, FT813, BT815/T817.
 
 This version allows you to connect screens with FT800 and FT801 chips, previously they had been left without support, with what has been learned it is possible to manage multimedia files with the SdFat beta library, except that these screens cannot process video files.
 
