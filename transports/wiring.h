@@ -7,37 +7,58 @@ private:
 public:
   void begin0(int _cs = CS) {
 
+if (SizeFT813==52){   //BT815 MO
+pinMode(POR_PIN, OUTPUT);
+digitalWrite(POR_PIN, HIGH);    
+delay(100);
+}
+
+if (SizeFT813==53){   //FT813 MO
+pinMode(POR_PIN, OUTPUT);
+digitalWrite(POR_PIN, HIGH);    
+delay(100);
+}
+
+if (SizeFT813==54){   //BT817
+pinMode(POR_PIN, OUTPUT);
+digitalWrite(POR_PIN, HIGH);    
+delay(100);
+//digitalWrite(POR_PIN, LOW);     //           |
+//delay(100);                     //           |
+//digitalWrite(POR_PIN, HIGH);    //           |
+//delay(100);
+}
+
+if (SizeFT813==100){   //BT817
+pinMode(POR_PIN, OUTPUT);
+digitalWrite(POR_PIN, HIGH);    
+delay(100);
+}
+
     cs = _cs;
 
     pinMode(cs, OUTPUT);
     digitalWrite(cs, HIGH);
 
     SPI.begin();
-#if defined(TEENSYDUINO) || defined(ARDUINO_ARCH_STM32L4) || defined(ARDUINO_ARCH_STM32)
-    #if (SizeFT813==0)
-        SPI.beginTransaction(SPISettings(14000000, MSBFIRST, SPI_MODE0));
-    #endif
-    #if (SizeFT813==51)
-        SPI.beginTransaction(SPISettings(36000000, MSBFIRST, SPI_MODE0));
-    #endif
-#endif
+    SPI.beginTransaction(SPISettings(SetSPISpeed, MSBFIRST, SPI_MODE0));
 
-    hostcmd(0x42);    // SLEEP
-    hostcmd(0x00);    // ACTIVE
-#if (BOARD != BOARD_GAMEDUINO23)
-    hostcmd(0x44);    // CLKEXT
-#else
-    hostcmd(0x48);    // CLKINT
+    hostcmd(0x00);
+#if 0
+    hostcmd(0x44); // from external crystal
 #endif
-    hostcmd(0x68);    // RST_PULSE
+    hostcmd(0x68);
   }
   void begin1() {
-#if 0
-    delay(120);
+
+#if 1
+    delay(320);
 #else
-    while ((__rd16(0xc0000UL) & 0xff) != 0x08)
+    while (__rd16(0xc0000UL) == 0xffff)
       ;
 #endif
+    while ((__rd16(0xc0000UL) & 0xff) != 0x08)
+      ;
 
     // Test point: saturate SPI
     while (0) {
@@ -67,17 +88,23 @@ public:
     }
 #endif
 
-// So that FT800,801      FT810-3   FT815,6
-// model       0            1         2
-    switch (__rd16(0x0c0000UL) >> 8) {
-    case 0x10:
-    case 0x11:
-    case 0x12:
-    case 0x13: ft8xx_model = 1; break;
-    case 0x15:
-    case 0x16: ft8xx_model = 2; break;
-    default:   ft8xx_model = 0; break;
+
+    // So that FT800,801      FT810-3   FT815,6      FT817
+    // model       0            1         2             3
+    switch (__rd16(0x0c0000) >> 8) {
+    case 0x00:
+    case 0x01: ft8xx_model = 0;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x10: ft8xx_model = 1;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x11: ft8xx_model = 1;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x12: ft8xx_model = 1;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x13: ft8xx_model = 1;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x15: ft8xx_model = 2;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    case 0x16: ft8xx_model = 2;  BT8XX = __rd16(0x0c0000) >> 8; break;
+	case 0x17: ft8xx_model = 3;  BT8XX = __rd16(0x0c0000) >> 8; break;
+    default:   ft8xx_model = 3;  BT8XX = __rd16(0x0c0000) >> 8; break;
+	
     }
+
 
     wp = 0;
     freespace = 4096 - 4;
@@ -96,6 +123,13 @@ public:
     }
     wp += 4;
     freespace -= 4;
+#if defined(ESP8266)
+    // SPI.writeBytes((uint8_t*)&x, 4);
+    SPI.write32(x, 0);
+#elif defined(ESP32)
+    // SPI.write32(x) has the wrong byte order.
+    SPI.writeBytes((uint8_t*)&x, 4);
+#else
     union {
       uint32_t c;
       uint8_t b[4];
@@ -105,6 +139,7 @@ public:
     SPI.transfer(b[1]);
     SPI.transfer(b[2]);
     SPI.transfer(b[3]);
+#endif
   }
   void cmdbyte(byte x) {
     if (freespace == 0) {
@@ -120,7 +155,9 @@ public:
     }
     wp += n;
     freespace -= n;
-
+#if defined(ARDUINO_ARCH_STM32)
+    SPI.write(s, n);
+#else
     while (n > 8) {
       n -= 8;
       SPI.transfer(*s++);
@@ -134,7 +171,7 @@ public:
     }
     while (n--)
       SPI.transfer(*s++);
-
+#endif
   }
 
   void flush() {
@@ -234,6 +271,7 @@ public:
     stream();
   }
 
+//FT81xmania Team
 void wr_n(uint32_t addr, byte *src, uint16_t n)
   {
     __end(); // stop streaming
@@ -242,6 +280,7 @@ void wr_n(uint32_t addr, byte *src, uint16_t n)
     SPI.transfer(*src++);
     stream();
   }
+//FT81xmania Team
 
   void wr32(uint32_t addr, unsigned long v)
   {
@@ -345,6 +384,14 @@ void wr_n(uint32_t addr, byte *src, uint16_t n)
       freespace = (4096 - 4) - fullness;
     } while (freespace < n);
     stream();
+  }
+  void daz_rd(uint8_t *s, size_t n) {
+    __end();
+    digitalWrite(10, LOW);
+    memset(s, 0xff, n);
+    SPI.transfer((char*)s, n);
+    digitalWrite(10, HIGH);
+    resume();
   }
 
   byte streaming;
