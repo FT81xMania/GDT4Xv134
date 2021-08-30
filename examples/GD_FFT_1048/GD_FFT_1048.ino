@@ -1,5 +1,5 @@
 #include <Audio.h>
-#include <GDXT4X.h>
+#include <GDT4Xv134.h>
 
 //                           GUItool: begin automatically generated code
 AudioInputAnalog         adc1;
