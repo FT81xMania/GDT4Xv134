@@ -1,36 +1,78 @@
 /*
- * Copyright (C) 2013-2018 by James Bowman <jamesb@excamera.com>
+ * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
  * Gameduino 2/3 library for Arduino, Arduino Due, Teensy 3.2,
  * ESP8266 and ESP32.
+ *
+ * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system    -- 09 March 2021
  */
 
-#ifndef _GDXT4X_H_INCLUDED
-#define _GDXT4X_H_INCLUDED
+#ifndef _GDT4Xv134_H_INCLUDED
+#define _GDT4Xv134_H_INCLUDED
 
-#define GDXT4X_VERSION "1.3.0a"
-#define GD23ZUTX_VERSION "1.3.0a"
-#define GDX23_VERSION "1.3.0a"
+#define GDT4Xv134_VERSION  "1.3.4 T4x"
+#define GD23X_VERSION      "1.3.4 T4x"
+#define GD23ZUTX_VERSION   "1.3.4 T4x"
 
+#include "SPI.h"
 #include "SdFat.h"
 #include "wiring.h"
+#include "Arduino.h"
 
-#define CS           10  //    EVE2/EVE3
+#define JPGsizeX   0
+#define JPGsizeY   0
+
+
+//#define EVE8XX       		 0 // 0x00:FT800/0x10:FT810/0x11:FT811/0x12:FT812/0x13:FT813/0x15:BT815/0x16:BT816/0x17:BT817
+#define POR_PIN     		24 //BT817 XD Gracias Hermano!, aún me sigues ayudando XD
+#define CS 					10
+#define EVETFTonTeensyX      1 //Mantiene acceso a los datos en la EEPROM 
 
 // Define Rotation
-#define ORIENTACION     0  // 0, 1, 2, 3, FT81X 
-#define ROTACION        0  // 0,1         FT80x
+#define ORIENTACION     	 0  // 0, 1, 2, 3, FT81X/BT81X 
+#define ROTACION        	 0  // 0,1         FT80x
 
 //*************** User editable line to select EVE TFT size
-#define SizeFT813      51  //NHD: 7-7",  5-5", 43-4.3", 35-3.5", Riverdi: 51-5", 71-7", MO: 52-5"BT815, MO: 53-5"FT813, 0 Riverdi FT801 4.3"
+#define SizeFT813      		 54  //NHD: 7-7",  5-5", 43-4.3", 35-3.5", Riverdi: 51-5", 71-7", MO: 52-5"BT815, MO: 53-5"FT813, 0 Riverdi FT801 4.3", Riverdi: 54-5"  BT817, Riverdi: 100-10"  BT817
 //*************** User editable line to select EVE TFT size
-
-
-#define BOARD_GAMEDUINO23    1
-#define BOARD         BOARD_GAMEDUINO23 // board, from above
+#if (SizeFT813==0)
+ #define SetSPISpeed   14000000
+#endif
+#if (SizeFT813==38)
+ #define SetSPISpeed   30000000
+#endif
+#if (SizeFT813==35)
+ #define SetSPISpeed   36000000
+#endif
+#if (SizeFT813==43)
+ #define SetSPISpeed   36000000
+#endif
+#if (SizeFT813==5)
+ #define SetSPISpeed   36000000
+#endif
+#if (SizeFT813==51)
+ #define SetSPISpeed   36000000
+#endif
+#if (SizeFT813==52)
+ //#define POR_PIN       24
+ #define SetSPISpeed   29000000
+#endif
+#if (SizeFT813==53)
+ #define SetSPISpeed   29000000
+#endif
+#if (SizeFT813==54)
+ #define SetSPISpeed   36000000     //32
+#endif
+#if (SizeFT813==100)
+ #define SetSPISpeed   36000000
+#endif
 
 #define RGB(r, g, b)    ((uint32_t)((((r) & 0xffL) << 16) | (((g) & 0xffL) << 8) | ((b) & 0xffL)))
 #define F8(x)           (int((x) * 256L))
 #define F16(x)          ((int32_t)((x) * 65536L))
+
+#define BOARD_GAMEDUINO23   1
+//#define BOARD_OTHER       3
+#define BOARD               BOARD_GAMEDUINO23 
 
 class xy {
 public:
@@ -47,6 +89,7 @@ public:
   long operator*(class xy &other);
   class xy operator*=(int);
   int nearer_than(int distance, xy &other);
+  
 };
 
 class Bitmap {
@@ -74,22 +117,34 @@ class Bitmap __fromatlas(uint32_t addr);
 
 ////////////////////////////////////////////////////////////////////////
 
+enum Primitive {
+BITMAPS              = 1,
+POINTS               = 2,
+LINES                = 3,
+LINE_STRIP           = 4,
+EDGE_STRIP_R         = 5,
+EDGE_STRIP_L         = 6,
+EDGE_STRIP_A         = 7,
+EDGE_STRIP_B         = 8,
+RECTS                = 9,
+};
+
 class GDClass {
+	
 //RndMnkIII, FT81xmania Team
 private:
     static const uint16_t TAM_BUFFER_SD; //8192 si se aumenta de tamaño se mejora en eficiencia de lectura 
     static const uint16_t TAM_BUFFER_FT;
     static byte buf[];
     static byte FTbuf[];
-//RndMnkIII, FT81xmania Team
-
-
+//RndMnkIII, FT81xmania Team	
+	
 public:
   int w, h;
   uint32_t loadptr;
   byte vxf;   // Vertex Format
 
-void begin(int cs = CS);
+  void begin(int cs = CS);
 
   uint16_t random();
   uint16_t random(uint16_t n);
@@ -100,8 +155,11 @@ void begin(int cs = CS);
   void polar(int &x, int &y, int16_t r, uint16_t th);
   uint16_t atan2(int16_t y, int16_t x);
 
+#if !defined(ESP8266) && !defined(ESP32) && !defined(TEENSYDUINO)
+  void copy(const PROGMEM uint8_t *src, int count);
+#else
   void copy(const uint8_t *src, int count);
-
+#endif
   void copyram(byte *src, int count);
 
   void self_calibrate(void);
@@ -114,7 +172,12 @@ void begin(int cs = CS);
   void sample(uint32_t start, uint32_t len, uint16_t freq, uint16_t format, int loop = 0);
 
   void get_inputs(void);
-  void get_accel(int &x, int &y, int &z);
+  
+  struct _wii {
+      byte active;
+      xy l, r;
+      uint16_t buttons;
+  };
   struct {
     uint16_t track_tag;
     uint16_t track_val;
@@ -128,10 +191,11 @@ void begin(int cs = CS);
     uint8_t ptag;
     uint8_t touching;
     xy xytouch;
+    struct _wii wii[2];
   } inputs;
 
   void AlphaFunc(byte func, byte ref);
-  void Begin(byte prim);
+  void Begin(Primitive prim);
   void BitmapHandle(byte handle);
   void BitmapLayout(byte format, uint16_t linestride, uint16_t height);
   void BitmapSize(byte filter, byte wrapx, byte wrapy, uint16_t width, uint16_t height);
@@ -182,6 +246,8 @@ void begin(int cs = CS);
   void VertexTranslateX(uint32_t x);
   void VertexTranslateY(uint32_t y);
   void Nop(void);
+  void BitmapExtFormat(uint16_t format);
+  void BitmapSwizzle(byte r, byte g, byte b, byte a);
 
   // Higher-level graphics commands
 
@@ -191,10 +257,10 @@ void begin(int cs = CS);
   void cmd_calibrate(void);
   void cmd_clock(int16_t x, int16_t y, int16_t r, uint16_t options, uint16_t h, uint16_t m, uint16_t s, uint16_t ms);
   void cmd_coldstart(void);
-
   void cmd_dial(int16_t x, int16_t y, int16_t r, uint16_t options, uint16_t val);
   void cmd_dlstart(void);
   void cmd_fgcolor(uint32_t c);
+  void cmd_fillwidth(uint32_t s);
   void cmd_gauge(int16_t x, int16_t y, int16_t r, uint16_t options, uint16_t major, uint16_t minor, uint16_t val, uint16_t range);
   void cmd_getmatrix(void);
   void cmd_getprops(uint32_t &ptr, uint32_t &w, uint32_t &h);
@@ -212,7 +278,11 @@ void begin(int cs = CS);
   void cmd_memwrite(uint32_t ptr, uint32_t num);
   void cmd_regwrite(uint32_t ptr, uint32_t val);
   void cmd_number(int16_t x, int16_t y, byte font, uint16_t options, uint32_t n);
-  void printNfloat(int16_t x, int16_t y, float f, int16_t Presc, byte font, uint16_t options);
+  void printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte font, uint16_t options);
+  
+   void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf);
+  void Rect_Filled(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
+  
   void cmd_progress(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t options, uint16_t val, uint16_t range);
   void cmd_regread(uint32_t ptr);
   void cmd_rotate(int32_t a);
@@ -221,6 +291,12 @@ void begin(int cs = CS);
   void cmd_scrollbar(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t options, uint16_t val, uint16_t size, uint16_t range);
   void cmd_setfont(byte font, uint32_t ptr);
   void cmd_setmatrix(void);
+  
+  //BT817
+  void cmd_testcard(void);
+  void cmd_logo(void);
+  //BT817
+  
   void cmd_sketch(int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t ptr, uint16_t format);
   void cmd_slider(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t options, uint16_t val, uint16_t range);
   void cmd_snapshot(uint32_t ptr);
@@ -268,21 +344,28 @@ void begin(int cs = CS);
   void reset(void);
 
   void dumpscreen(void);
-
+  
 //RndMnkIII, FT81xmania Team
 
-#ifdef TEENSYDUINO
-  byte loadSdFat(File32& archivo, void (*progress)(long, long) = NULL);
-  void safeloadSdFat(File32& archivo);
-#endif
+//#ifdef TEENSYDUINO
 
-//RndMnkIII, FT81xmania Team
+ //#define SD_FAT_TYPE 1   //para FAT16/FAT32
+  //byte loadSdFat(File32& archivo, void (*progress)(long, long) = NULL);
+  //void safeloadSdFat(File32& archivo);
+  //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
+    byte loadSdFat(FsFile& archivo, void (*progress)(long, long) = NULL);
+  void safeloadSdFat(FsFile& archivo);
+//#endif
 
+//RndMnkIII, FT81xmania Team  
+  
   byte load(const char *filename, void (*progress)(long, long) = NULL);
   void safeload(const char *filename);
   void alert();
   void textsize(int &w, int &h, int font, const char *s);
 
+  
+  void storage(void);
   void tune(void);
 
 private:
@@ -305,6 +388,7 @@ private:
 
 extern GDClass GD;
 extern byte ft8xx_model;
+
 
 
 typedef struct {
@@ -336,6 +420,7 @@ typedef struct {
 #define ARGB2                5
 #define ARGB4                6
 #define RGB565               7
+
 #define PALETTED             8
 #define TEXT8X8              9
 #define TEXTVGA              10
@@ -344,6 +429,7 @@ typedef struct {
 #define PALETTED4444         15
 #define PALETTED8            16
 #define L2                   17
+#define GLFORMAT             31
 
 #define NEAREST              0
 #define BILINEAR             1
@@ -382,16 +468,6 @@ typedef struct {
 #define ONE_MINUS_SRC_ALPHA  4
 #define ONE_MINUS_DST_ALPHA  5
 
-#define BITMAPS              1
-#define POINTS               2
-#define LINES                3
-#define LINE_STRIP           4
-#define EDGE_STRIP_R         5
-#define EDGE_STRIP_L         6
-#define EDGE_STRIP_A         7
-#define EDGE_STRIP_B         8
-#define RECTS                9
-
 #define OPT_MONO             1
 #define OPT_NODL             2
 #define OPT_FLAT             256
@@ -411,6 +487,13 @@ typedef struct {
 #define OPT_NOTEAR           4
 #define OPT_FULLSCREEN       8
 #define OPT_MEDIAFIFO        16
+
+#define OPT_FILL             8192
+#define OPT_FORMAT           4096
+#define OPT_FLASH            64
+
+
+
 
 #define LINEAR_SAMPLES       0
 #define ULAW_SAMPLES         1
@@ -523,8 +606,20 @@ typedef struct {
 #define REG_TOUCH_TRANSFORM_F (ft8xx_model ? 0x302164UL : 0x102530UL)
 
 //FT81xmania
+//#define REG_GPIOX              0x30209CUL
 #define REG_GPIOX_DIR          0x302098UL
 #define REG_TOUCH_CONFIG       0x302168UL
+
+
+// FT817/18 only registers
+#define REG_UNDERRUN     		0x0030260c
+#define REG_AH_CYCLE_MAX 		0x00302610
+#define REG_PCLK_FREQ    		0x00302614
+#define REG_PCLK_2X      		0x00302618
+#define REG_ANIM_ACTIVE  		0x0030902C
+#define REG_CTOUCH_MODE         0x003104UL
+// FT817/18 only registers
+
 //FT81xmania
 
 #define REG_TRACKER           (ft8xx_model ? 0x309000UL : 0x109000UL)
@@ -548,11 +643,30 @@ typedef struct {
 #define REG_FLASH_SIZE                       0x00309024 
 #define REG_FLASH_STATUS                     0x003025f0 
 #define REG_ADAPTIVE_FRAMERATE               0x0030257c
+//#define REG_FRAMES                           0x00302004
+
+
+#define RED                  2
+#define GREEN                3
+#define BLUE                 4
+#define ALPHA                5
 
 #define VERTEX2II(x, y, handle, cell) \
         ((2UL << 30) | (((x) & 511UL) << 21) | (((y) & 511UL) << 12) | (((handle) & 31) << 7) | (((cell) & 127) << 0))
 
 #define ROM_PIXEL_FF        0xc0400UL
+
+#define WII_A      (1 << 12)
+#define WII_B      (1 << 14)
+#define WII_SELECT (1 << 4)
+#define WII_HOME   (1 << 3)
+#define WII_START  (1 << 2)
+#define WII_X      (1 << 11)
+#define WII_Y      (1 << 13)
+#define WII_UP     (1 << 8)
+#define WII_DOWN   (1 << 6)
+#define WII_LEFT   (1 << 9)
+#define WII_RIGHT  (1 << 7)
 
 class Poly {
     int x0, y0, x1, y1;
@@ -616,7 +730,6 @@ class Poly {
 };
 
 //FT81xmania Team
-
 class Streamer {
 public:
   void begin(const char *rawsamples,
@@ -635,7 +748,8 @@ public:
       mask = size - 1;
       wp = 0;
 
-      for (byte i = 0; i<10; i++) {
+      //for (byte i = 0; i<10; i++) {
+	  for (byte i = 10; i; i--){
         feed();
       }
       GD.sample(base, size, freq, format, 1);
@@ -673,14 +787,16 @@ public:
     range = m;
   }
 private:
-
-  File32 r;
+ 
+ //#define SD_FAT_TYPE 1  //para FAT16/FAT32
+  //File32 r;
+ //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
+  FsFile r;
 
   uint32_t base;
   uint16_t mask;
   uint16_t wp;
 };
-
 //FT81xmania Team
 
 ////////////////////////////////////////////////////////////////////////
@@ -771,12 +887,14 @@ public:
 };
 
 //FT81xmania Team
-
 class MoviePlayer
 {
   uint32_t mf_size, mf_base, wp;
 
-  File32 r;
+ //#define SD_FAT_TYPE 1  //para FAT16/FAT32
+  //File32 r;
+ //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
+  FsFile r;
 
   void loadsector() {
     byte buf[512];
@@ -850,17 +968,18 @@ GD.flush();
 //FT81xmania Team
 
 
+
 /*
  * PROGMEM declarations are currently not supported by the ESP8266
  * compiler. So redefine PROGMEM to nothing.
  */
 
-#if defined(TEENSYDUINO)
+#if defined(ESP8266) || defined(ARDUINO_ARCH_STM32L4) || defined(TEENSYDUINO)
 #undef PROGMEM
 #define PROGMEM
 #endif
 
-#if defined(TEENSYDUINO)
+#if defined(TEENSYDUINO) && !defined(SPIDRIVER)
 static void __attribute__((__unused__)) teensy_sync()
 {
   while (1) {

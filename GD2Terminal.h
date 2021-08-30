@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <GDXT4X.h>
+#include <GDT4Xv134.h>
 
 // DB32 Pallete
 // https://github.com/geoffb/dawnbringer-palettes
