@@ -1,9 +1,18 @@
 /*
- * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
- * Gameduino 2/3 library for Arduino, Arduino Due, Teensy 3.2,
- * ESP8266 and ESP32.
  *
+ * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
+ * Gameduino 2/3 library for Arduino, Arduino Due, Raspberry Pi,
+ * Teensy 3.x/4.0, ESP8266 and ESP32.
  * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system    -- 09 March 2021
+ * Riverdi FT801@4.3"
+ * Riverdi FT813@5"
+ * Riverdi FT813@7"
+ * NHD FT813@3.5"
+ * NHD FT813@4.3"
+ * NHD FT813@5"
+ * NHD FT813@7"
+ * Support for SdFat Beta                               -- 12 April 2021
+ * Add timmings for Riverdi BT817@5"                    -- 01 Sept  2021
  */
 
 #ifndef _GDT4Xv134_H_INCLUDED
@@ -27,6 +36,12 @@
 #define CS 					10
 #define EVETFTonTeensyX      1 //Mantiene acceso a los datos en la EEPROM 
 
+  #if defined(ARDUINO_TEENSY32)
+    #define SD_PIN 					5
+	//#define SetSDSpeed             36  //NOTA: debe ser la misma velocidad que la de la pantalla
+  #endif
+
+
 // Define Rotation
 #define ORIENTACION     	 0  // 0, 1, 2, 3, FT81X/BT81X 
 #define ROTACION        	 0  // 0,1         FT80x
@@ -47,7 +62,7 @@
  #define SetSPISpeed   36000000
 #endif
 #if (SizeFT813==5)
- #define SetSPISpeed   36000000
+ #define SetSPISpeed   34000000
 #endif
 #if (SizeFT813==51)
  #define SetSPISpeed   36000000
@@ -280,7 +295,8 @@ public:
   void cmd_number(int16_t x, int16_t y, byte font, uint16_t options, uint32_t n);
   void printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte font, uint16_t options);
   
-   void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf);
+   void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
+   //void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf);
   void Rect_Filled(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
   
   void cmd_progress(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t options, uint16_t val, uint16_t range);
@@ -293,8 +309,10 @@ public:
   void cmd_setmatrix(void);
   
   //BT817
+#if (SizeFT813==54)
   void cmd_testcard(void);
   void cmd_logo(void);
+#endif  
   //BT817
   
   void cmd_sketch(int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t ptr, uint16_t format);
@@ -353,7 +371,7 @@ public:
   //byte loadSdFat(File32& archivo, void (*progress)(long, long) = NULL);
   //void safeloadSdFat(File32& archivo);
   //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
-    byte loadSdFat(FsFile& archivo, void (*progress)(long, long) = NULL);
+  byte loadSdFat(FsFile& archivo, void (*progress)(long, long) = NULL);
   void safeloadSdFat(FsFile& archivo);
 //#endif
 
@@ -429,6 +447,9 @@ typedef struct {
 #define PALETTED4444         15
 #define PALETTED8            16
 #define L2                   17
+
+ 
+
 #define GLFORMAT             31
 
 #define NEAREST              0
@@ -483,6 +504,12 @@ typedef struct {
 #define OPT_RIGHTX           2048
 #define OPT_SIGNED           256
 #define OPT_SOUND            32
+
+
+#define OPT_DITHER           256
+#define OPT_3D               0
+#define OPT_OPT_RGB565       0
+
 
 #define OPT_NOTEAR           4
 #define OPT_FULLSCREEN       8

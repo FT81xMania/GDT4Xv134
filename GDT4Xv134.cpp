@@ -3,8 +3,16 @@
  * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
  * Gameduino 2/3 library for Arduino, Arduino Due, Raspberry Pi,
  * Teensy 3.x/4.0, ESP8266 and ESP32.
- *
  * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system    -- 09 March 2021
+ * Riverdi FT801@4.3"
+ * Riverdi FT813@5"
+ * Riverdi FT813@7"
+ * NHD FT813@3.5"
+ * NHD FT813@4.3"
+ * NHD FT813@5"
+ * NHD FT813@7"
+ * Support for SdFat Beta                               -- 12 April 2021
+ * Add timmings for Riverdi BT817@5"                    -- 01 Sept  2021
  */
 
 #include <Arduino.h>
@@ -18,6 +26,9 @@
  
  //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
  SdFs SD;
+ 
+ 
+ 
 
 #ifdef DUMPDEV
 #include <assert.h>
@@ -136,17 +147,12 @@ void Bitmap::fromtext(int font, const char* s)
 {
   GD.textsize(size.x, size.y, font, s);
   int pclk = GD.rd32(REG_PCLK);
-  Serial.println(pclk);
   int vsize = GD.rd32(REG_VSIZE);
-  Serial.println(vsize);
   int hsize = GD.rd32(REG_HSIZE);
-  Serial.println(hsize);
 
   GD.finish();
-  
-   
-  GD.wr32(REG_PCLK, 0);
-  delay(1);
+  GD.wr16(REG_PCLK, 0);   
+   delay(1);
   GD.wr32(REG_HSIZE, size.x);
   GD.wr32(REG_VSIZE, size.y);
 
@@ -177,7 +183,7 @@ void Bitmap::fromfile(const char* filename, int format)
   GD.finish();
   size.x = GD.rd32(w);
   size.y = GD.rd32(h);
-  //Serial.print(size.x);  Serial.print("x");  Serial.print(size.y); Serial.println(" px");
+  Serial.print(size.x);  Serial.print("x");  Serial.print(size.y); Serial.println(" px");
   defaults(format);
 }
 
@@ -565,7 +571,7 @@ LOW_FREQ_BOUND = 60000000UL;  //  59000000UL   óptimo
  {
   Serial.print("BT8");  Serial.println(BT8XX, HEX); //Serial.println(BT8XX, HEX);
  } 
- Serial.print("SPI-1 speed: ");   Serial.println(SetSPISpeed);
+ Serial.print("TFT id: ");  Serial.println(SizeFT813);  Serial.print("SPI-1 speed: ");   Serial.println(SetSPISpeed);
  //Serial.println(LOW_FREQ_BOUND);
  Serial.print(rd32(REG_HSIZE));  Serial.print("x");   Serial.print(rd32(REG_VSIZE));    Serial.println(" px");
  //Serial.println(rd32(REG_HOFFSET));
@@ -596,7 +602,11 @@ void GDClass::begin(int cs) {
   GDTR.begin0(cs);
   byte external_crystal = 0;
   
-  SD.begin(SdioConfig(FIFO_SDIO));
+  #if defined(ARDUINO_TEENSY32)
+    //SD.begin( SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(36)) );
+  #else
+    SD.begin(SdioConfig(FIFO_SDIO));
+  #endif
   
   begin1:
   GDTR.begin1();
@@ -723,20 +733,22 @@ if (SizeFT813==54){
     GD.wr32(REG_HSYNC1, 4);   //2   4   8    4   Thpw/Thw  HS pulse width         
 	
     GD.wr32(REG_VCYCLE, 496);  //488 496 504  504 Tv        VS period time         
-    GD.wr32(REG_VOFFSET, 8);  //4   8   12   12   Tvb       VS Blanking            
+	GD.wr32(REG_VOFFSET, 4);  //4   8   12   12   Tvb       VS Blanking
     GD.wr32(REG_VSYNC0, 8);   //4   8   12   12   Tvfp      VS front porch         
     GD.wr32(REG_VSYNC1, 4);    //2   4   8    8   Tvpw/Tvw  VS pulse width         
 
-    GD.wr32(REG_PCLK, 2);             //2, 1, 0       1:REG_PCLK_FREQ
+    GD.wr32(REG_PCLK, 2);             //2, 1, 0       2:REG_PCLK_FREQ
 	//GD.wr32(REG_PCLK_FREQ, 1);        //0   
 	//GD.wr32(REG_PCLK_2X, 0);          //0,1
     //GD.wr32(REG_SWIZZLE, 0);          //0 1  3
-    GD.wr32(REG_PCLK_POL, 1);         //1, 0
+    GD.wr32(REG_PCLK_POL, 0);         //1, 0    0 to off vertical lines on horizontal gradients
     GD.wr32(REG_CSPREAD, 1);          //1,0
     GD.wr32(REG_DITHER, 1);           //1, 0
-	GD.wr32(REG_OUTBITS, 0x360);      //0x360  0xff0
+	//GD.wr32(REG_OUTBITS, 0x360);      //0x360  0xff0
 		
 	//cmd_regwrite(REG_PWM_DUTY, 128);
+	
+	//test with cmd_testcard() in order to correct the timmings   p189, BRT_AN_033_BT81X
 }
 //TFT Riverdi 5"   EVE4
 
@@ -937,12 +949,21 @@ if (SizeFT813==5)
       for (int i = 0; i < 24; i++)
         {
          EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_A + i));
+		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_B + i));
+		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_C + i));
+		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_D + i));
+		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_E + i));
         }
       EEPROM.write(0, 0x1);  // is written!
     } else {
       for (int i = 0; i < 24; i++)
         {
          GDTR.wr(REG_TOUCH_TRANSFORM_A + i, EEPROM.read(1 + i));
+		 //GDTR.wr(REG_TOUCH_TRANSFORM_B + i, EEPROM.read(1 + i));
+		 //GDTR.wr(REG_TOUCH_TRANSFORM_C + i, EEPROM.read(1 + i));
+		 //GDTR.wr(REG_TOUCH_TRANSFORM_D + i, EEPROM.read(1 + i));
+		 //GDTR.wr(REG_TOUCH_TRANSFORM_E + i, EEPROM.read(1 + i));
+		 
         }
     }
 }	
@@ -1553,28 +1574,39 @@ void GDClass::printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte fo
    //cmd_text(x, y, font, OPT_CENTER, floatNumber);
 }
 
-void GDClass::Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf)
+void GDClass::Rect_Empty(int16_t xi, int16_t yi,int16_t xPX, int16_t yPX, int16_t RF, int16_t GF, int16_t BF)
+//void GDClass::Rect_Empty(int16_t xi, int16_t yi,int16_t xPX, int16_t yPX)
 {
+  GD.SaveContext();
+  GD.ColorRGB(RF, GF, BF);     //color de relleno
+  int xf=xi+xPX;
+  int yf=yi+yPX;
   GD.Begin(LINES); GD.LineWidth(0.5 * 16);
   GD.Vertex2f(xi*16, yi*16); GD.Vertex2f(xi*16, yf*16); //lado izquierdo
   GD.Vertex2f(xi*16, yi*16); GD.Vertex2f(xf*16, yi*16); //lado superior
   GD.Vertex2f(xf*16, yi*16); GD.Vertex2f(xf*16, yf*16); //lado derecho
   GD.Vertex2f(xi*16, yf*16); GD.Vertex2f(xf*16, yf*16); //lado inferior
-  GD.End();
+  GD.RestoreContext();
+  //GD.End();
 }
 
-void GDClass::Rect_Filled(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF)
+void GDClass::Rect_Filled(int16_t xi, int16_t yi,int16_t xPX, int16_t yPX, int16_t RF, int16_t GF, int16_t BF)
 {
+ GD.SaveContext();
+ int xf=xi+xPX;
+ int yf=yi+yPX;
  GD.Begin(RECTS);
- GD.LineWidth(2 * 16);        // corner radius 2 pixels
- GD.Vertex2f(xi*16, yi*16);   //esquina inicial
- GD.Vertex2f(xf*16, yf*16);   //esquina final
+ //GD.LineWidth(2 * 16);        // corner radius 2 pixels
+ //GD.Vertex2f(xi*16, yi*16);   //esquina inicial
+ //GD.Vertex2f(xf*16, yf*16);   //esquina final
 
  GD.ColorRGB(RF, GF, BF);     //color de relleno
  GD.LineWidth(1 * 16);        // corner radius 1 pixels
  GD.Vertex2f(xi*16, yi*16);   //esquina inicial
+ //GD.Vertex2f(xf*16, yf*16);   //esquina final
  GD.Vertex2f(xf*16, yf*16);   //esquina final
- GD.End();	
+ GD.RestoreContext();
+ //GD.End();	
 }
 
 
@@ -1628,7 +1660,9 @@ void GDClass::cmd_setfont(byte font, uint32_t ptr) {
 void GDClass::cmd_setmatrix(void) {
   cFFFFFF(0x2a);
 }
+
 //BT817
+#if (SizeFT813==54)
 void GDClass::cmd_testcard(void) {
   cFFFFFF(0x61);
 }
@@ -1636,6 +1670,7 @@ void GDClass::cmd_testcard(void) {
 void GDClass::cmd_logo(void) {
   cFFFFFF(0x31);
 }
+#endif  
 //BT817
 void GDClass::cmd_sketch(int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t ptr, uint16_t format) {
   cFFFFFF(0x30);
