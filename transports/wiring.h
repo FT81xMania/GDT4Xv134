@@ -19,6 +19,12 @@ digitalWrite(POR_PIN, HIGH);
 delay(100);
 }
 
+if (SizeFT813==38){   //FT813 MO
+pinMode(POR_PIN, OUTPUT);
+digitalWrite(POR_PIN, HIGH);    
+delay(100);
+}
+
 if (SizeFT813==54){   //BT817
 pinMode(POR_PIN, OUTPUT);
 digitalWrite(POR_PIN, HIGH);    
@@ -39,6 +45,11 @@ delay(100);
 
     pinMode(cs, OUTPUT);
     digitalWrite(cs, HIGH);
+
+ #if defined(ARDUINO_TEENSY32)
+	//pinMode(SD_PIN, OUTPUT);
+    //digitalWrite(SD_PIN, HIGH);
+  #endif
 
     SPI.begin();
     SPI.beginTransaction(SPISettings(SetSPISpeed, MSBFIRST, SPI_MODE0));
