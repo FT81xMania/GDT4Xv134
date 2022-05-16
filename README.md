@@ -15,7 +15,7 @@ Two friends, in Mexico and another in Spain, the water or the puddle does not sc
 Last month of May, a member of the Team, we left. We move on.
 Without any interest, we publish this library altruistically.
 
-# 03-03-2021: Release initial (GDXT4X)
+# 03-03-2021: Release initial (GDT4Xv134)
 
 
 1. Library based on gameduino 23X lib of [James Bowman](https://github.com/jamesbowman/gd2-lib)
@@ -28,5 +28,12 @@ Library with function special **playback videos**.
 * Teensy 3.5 and Teensy 3.6
 * Teensy 4
 * Teensy 4.1
+
+# 16-05-2022: Actualización para soportar STM32: F411CE y F407VG
+
+El objetivo principal es poder conectar las pantallas FT81x/BT81x en placas como la teensy 4 y 4.1 aprovechando el poder de la libreria SdFat y el lector SDIO nativo en estas MCU. Con algunos ajustes mínimos ha sido posible conectar placas STM32 como la F411CE y la F407VG, que gracias a su formato reducido las vuelven ideales para proyectos en los que el espacio es una limitante. 
+
+El núcleo oficial para STM32 no permite obtener todo el potencial de la libreria SdFat mas reciente, se ha utilizado el nucleo alternativo desarrollado cor Danieleff (https://github.com/danieleff/STM32GENERIC). El TFT está conectado en el bus SPI1 y el lector microSD está conectado en SPI2.
+
 
 In memory of my brother Tomas. Thank You!
