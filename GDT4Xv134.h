@@ -3,7 +3,7 @@
  * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
  * Gameduino 2/3 library for Arduino, Arduino Due, Raspberry Pi,
  * Teensy 3.x/4.0, ESP8266 and ESP32.
- * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system    -- 09 March 2021
+ * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system               -- 09 March 2021
  * Riverdi FT801@4.3"
  * Riverdi FT813@5"
  * Riverdi FT813@7"
@@ -11,20 +11,25 @@
  * NHD FT813@4.3"
  * NHD FT813@5"
  * NHD FT813@7"
- * Support for SdFat Beta                               -- 12 April 2021
- * Add timmings for Riverdi BT817@5"                    -- 01 Sept  2021
+ * Support for SdFat Beta (Greimann)                               -- 12 April 2021
+ * Add timmings for Riverdi BT817@5"                               -- 01 Sept  2021
+ * Add logo on the touching calibration and the error test         -- 18 Nov   2021 
+ * Add STM32 boards support (for F411CE and F407VG, Danielef Core) -- 13 April 2022   
  */
 
 #ifndef _GDT4Xv134_H_INCLUDED
 #define _GDT4Xv134_H_INCLUDED
 
-#define GDT4Xv134_VERSION  "1.3.4 T4x"
-#define GD23X_VERSION      "1.3.4 T4x"
-#define GD23ZUTX_VERSION   "1.3.4 T4x"
+#define GDT4Xv134_VERSION  "1.4 T4x-STM32"
+#define GD23X_VERSION      "1.4 T4x-STM32"
+#define GD23ZUTX_VERSION   "1.4 T4x-STM32"
 
 #include "SPI.h"
 #include "SdFat.h"
-#include "wiring.h"
+
+//#include "wiring.h"
+//#include "transports/wiring.h"
+
 #include "Arduino.h"
 
 #define JPGsizeX   0
@@ -32,14 +37,56 @@
 
 
 //#define EVE8XX       		 0 // 0x00:FT800/0x10:FT810/0x11:FT811/0x12:FT812/0x13:FT813/0x15:BT815/0x16:BT816/0x17:BT817
-#define POR_PIN     		24 //BT817 XD Gracias Hermano!, aún me sigues ayudando XD
+#define POR_PIN     		24 //BT817 XD Gracias Hermano!, aún me sigues ayudando XD activar BT817
 #define CS 					10
-#define EVETFTonTeensyX      1 //Mantiene acceso a los datos en la EEPROM 
 
-  #if defined(ARDUINO_TEENSY32)
-    #define SD_PIN 					5
-	//#define SetSDSpeed             36  //NOTA: debe ser la misma velocidad que la de la pantalla
+
+//#define EVETFTonTeensyX      0 //1 acceso a la EEPROM en Teensy X.X        0 acceso a la memoria externa en STM32
+
+#if defined(ARDUINO_TEENSY32)
+  #define SD_PIN 			 5
+#endif
+
+#if defined(ARDUINO_ARCH_STM32)
+
+  #include <AT24Cxx.h>
+  #define EEPROM_SOURCE      0  
+
+  #if (EEPROM_SOURCE == 0)
+   #define i2c_address     0x50  //EEPROM breakout like 24FC512
+//   #define i2c_address     0x51  //EEPROM breakout like 24LC512
   #endif
+
+  #if (EEPROM_SOURCE == 1)
+   #define i2c_address     0x57   //EEPROM on DS3231
+  #endif
+
+
+ #define CS 			   PA4
+ #define STM32_CPU         411//4073, 411    //4073 F407VG-Danieleff y SdFat V2 oficial  F411CE-Black
+
+ #if(STM32_CPU == 411) 
+    #define SD_PIN         PB12  //PB12 SPI2-F411CE            funciona sin problemas
+    #define SetSDSpeed       48  
+  #endif   
+ 
+ #if(STM32_CPU == 4073) 
+    #define SD_PIN         PB12  //PB12 SPI2-F407VG            funciona sin problemas
+    #define SetSDSpeed       48  
+  #endif  
+
+  #if(STM32_CPU == 746) 
+     #define SD_PIN        PA15  //PA15  SPI3 F429 y Core7XXI        no funciona correctamente, afinar variante
+     #define SetSDSpeed      36  
+     //#define POR_INT       PE0   //STM32 PE0
+  #endif
+  
+  #if(STM32_CPU == 767) 
+     #define SD_PIN        PB11  //PB11 SPI3-F767, PA11 SPI2-F767    no funciona correctamente, afinar variante
+     #define SetSDSpeed      36  
+  #endif  
+
+#endif
 
 
 // Define Rotation
@@ -47,7 +94,15 @@
 #define ROTACION        	 0  // 0,1         FT80x
 
 //*************** User editable line to select EVE TFT size
-#define SizeFT813      		 54  //NHD: 7-7",  5-5", 43-4.3", 35-3.5", Riverdi: 51-5", 71-7", MO: 52-5"BT815, MO: 53-5"FT813, 0 Riverdi FT801 4.3", Riverdi: 54-5"  BT817, Riverdi: 100-10"  BT817
+
+#ifdef TEENSYDUINO  	  
+ #define SizeFT813      		 43  //35//43//54//5  //NHD: 7-7",  5-5", 43-4.3", 35-3.5", Riverdi: 51-5", 71-7", MO: 52-5"BT815, MO: 53-5"FT813, 0 Riverdi FT801 4.3", Riverdi: 54-5"  BT817, Riverdi: 100-10"  BT817
+#endif
+
+#if defined(ARDUINO_ARCH_STM32)
+ #define SizeFT813      		 35  //35//43//54//5  //NHD: 7-7",  5-5", 43-4.3", 35-3.5", Riverdi: 51-5", 71-7", MO: 52-5"BT815, MO: 53-5"FT813, 0 Riverdi FT801 4.3", Riverdi: 54-5"  BT817, Riverdi: 100-10"  BT817
+#endif
+
 //*************** User editable line to select EVE TFT size
 #if (SizeFT813==0)
  #define SetSPISpeed   14000000
@@ -59,10 +114,10 @@
  #define SetSPISpeed   36000000
 #endif
 #if (SizeFT813==43)
- #define SetSPISpeed   36000000
+ #define SetSPISpeed   36000000//36000000
 #endif
 #if (SizeFT813==5)
- #define SetSPISpeed   34000000
+ #define SetSPISpeed   36000000
 #endif
 #if (SizeFT813==51)
  #define SetSPISpeed   36000000
@@ -75,11 +130,13 @@
  #define SetSPISpeed   29000000
 #endif
 #if (SizeFT813==54)
- #define SetSPISpeed   36000000     //32
+ #define SetSPISpeed   34000000     //32
 #endif
 #if (SizeFT813==100)
  #define SetSPISpeed   36000000
 #endif
+
+
 
 #define RGB(r, g, b)    ((uint32_t)((((r) & 0xffL) << 16) | (((g) & 0xffL) << 8) | ((b) & 0xffL)))
 #define F8(x)           (int((x) * 256L))
@@ -293,9 +350,22 @@ public:
   void cmd_memwrite(uint32_t ptr, uint32_t num);
   void cmd_regwrite(uint32_t ptr, uint32_t val);
   void cmd_number(int16_t x, int16_t y, byte font, uint16_t options, uint32_t n);
-  void printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte font, uint16_t options);
   
-   void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
+
+#if defined(ARDUINO_ARCH_STM32)  
+   void printNfloat(int16_t x, int16_t y, float f, int16_t Presc, byte font);
+#endif 
+  
+//  #ifdef TEENSYDUINO
+//  void printNfloat2(int16_t x, int16_t y, float f, int16_t Presc, byte font);
+//  #endif 
+  
+#ifdef TEENSYDUINO  
+  void printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte font, uint16_t options);
+#endif   
+  
+  
+  void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
    //void Rect_Empty(int16_t xi, int16_t yi,int16_t xf, int16_t yf);
   void Rect_Filled(int16_t xi, int16_t yi,int16_t xf, int16_t yf, int16_t RF, int16_t GF, int16_t BF);
   
@@ -311,9 +381,11 @@ public:
   //BT817
 #if (SizeFT813==54)
   void cmd_testcard(void);
-  void cmd_logo(void);
+
 #endif  
   //BT817
+
+  void cmd_logo(void);
   
   void cmd_sketch(int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t ptr, uint16_t format);
   void cmd_slider(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t options, uint16_t val, uint16_t range);
@@ -635,7 +707,7 @@ typedef struct {
 //FT81xmania
 //#define REG_GPIOX              0x30209CUL
 #define REG_GPIOX_DIR          0x302098UL
-#define REG_TOUCH_CONFIG       0x302168UL
+//#define REG_TOUCH_CONFIG       0x302168UL
 
 
 // FT817/18 only registers
@@ -927,8 +999,8 @@ class MoviePlayer
     byte buf[512];
     GD.__end();
 
-    int32_t c = r.curPosition();
-    int32_t p = r.peek();
+    //int32_t c = r.curPosition();  //en revision comentarlo
+    //int32_t p = r.peek();         //en revision comentarlo
     int n = r.read(buf,512);
 
     GD.resume();

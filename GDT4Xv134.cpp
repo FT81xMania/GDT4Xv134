@@ -3,7 +3,7 @@
  * Copyright (C) 2013-2021 by James Bowman <jamesb@excamera.com>
  * Gameduino 2/3 library for Arduino, Arduino Due, Raspberry Pi,
  * Teensy 3.x/4.0, ESP8266 and ESP32.
- * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system    -- 09 March 2021
+ * Modified by TFTLCDCyg to Teensy 4/4.1 SDIO system               -- 09 March 2021
  * Riverdi FT801@4.3"
  * Riverdi FT813@5"
  * Riverdi FT813@7"
@@ -11,23 +11,62 @@
  * NHD FT813@4.3"
  * NHD FT813@5"
  * NHD FT813@7"
- * Support for SdFat Beta                               -- 12 April 2021
- * Add timmings for Riverdi BT817@5"                    -- 01 Sept  2021
+ * Support for SdFat Beta (Greimann)                               -- 12 April 2021
+ * Add timmings for Riverdi BT817@5"                               -- 01 Sept  2021
+ * Add logo on the touching calibration and the error test         -- 18 Nov   2021 
+ * Add STM32 boards support (for F411CE and F407VG, Danielef Core) -- 13 April 2022   
  */
 
 #include <Arduino.h>
 #include "SPI.h"
-#include "EEPROM.h"
+#include "SdFat.h"
 
 #include <GDT4Xv134.h>
-#include "SdFat.h"
+
+#ifdef TEENSYDUINO 
+ #include "EEPROM.h"
  //#define SD_FAT_TYPE 1  //para FAT16/FAT32
  //SdFat32 SD;
  
  //#define SD_FAT_TYPE 3  //para FAT16/FAT32 and exFAT
  SdFs SD;
- 
- 
+#endif
+
+#if defined(ARDUINO_ARCH_STM32)
+
+ #if(STM32_CPU == 411)
+//                             MOSI  MISO  SCK
+   extern SPIClass SPI_2(SPI2, PB15, PB14, PB13);   //M3DEMO, F411CE
+   #define SD_CONFIG SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(SetSDSpeed), &SPI_2)
+ #endif  
+
+
+ #if(STM32_CPU == 4073)
+//                             MOSI  MISO  SCK
+   extern SPIClass SPI_2(SPI2, PB15, PB14, PB10);   //M4DEMO, F407VG
+   #define SD_CONFIG SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(SetSDSpeed), &SPI_2)
+ #endif  
+
+ #if(STM32_CPU == 746)
+//                            MOSI  MISO  SCK
+   extern SPIClass SPI_3(SPI3, PB2, PB4, PB3);
+   #define SD_CONFIG SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(SetSDSpeed), &SPI_3)
+ #endif
+
+
+  #if(STM32_CPU == 767)
+//                            MOSI  MISO SCK
+   extern SPIClass SPI_3(SPI3, PB2, PB4, PB3);
+   #define SD_CONFIG SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(SetSDSpeed), &SPI_3)
+
+  #endif
+
+
+ SdFs SD;  //type 3
+#endif 
+
+
+
  
 
 #ifdef DUMPDEV
@@ -602,9 +641,13 @@ void GDClass::begin(int cs) {
   GDTR.begin0(cs);
   byte external_crystal = 0;
   
-  #if defined(ARDUINO_TEENSY32)
+  //#if defined(ARDUINO_TEENSY32)
+  #if defined(ARDUINO_ARCH_STM32)
     //SD.begin( SdSpiConfig(SD_PIN, DEDICATED_SPI, SD_SCK_MHZ(36)) );
-  #else
+	SD.begin(SD_CONFIG);
+  #endif	
+
+  #ifdef TEENSYDUINO  	  
     SD.begin(SdioConfig(FIFO_SDIO));
   #endif
   
@@ -733,18 +776,19 @@ if (SizeFT813==54){
     GD.wr32(REG_HSYNC1, 4);   //2   4   8    4   Thpw/Thw  HS pulse width         
 	
     GD.wr32(REG_VCYCLE, 496);  //488 496 504  504 Tv        VS period time         
-	GD.wr32(REG_VOFFSET, 4);  //4   8   12   12   Tvb       VS Blanking
+	GD.wr32(REG_VOFFSET, 8);  //4   8   12   12   Tvb       VS Blanking     4
     GD.wr32(REG_VSYNC0, 8);   //4   8   12   12   Tvfp      VS front porch         
     GD.wr32(REG_VSYNC1, 4);    //2   4   8    8   Tvpw/Tvw  VS pulse width         
 
     GD.wr32(REG_PCLK, 2);             //2, 1, 0       2:REG_PCLK_FREQ
 	//GD.wr32(REG_PCLK_FREQ, 1);        //0   
-	//GD.wr32(REG_PCLK_2X, 0);          //0,1
+	GD.wr32(REG_PCLK_2X, 0);          //0,1
     //GD.wr32(REG_SWIZZLE, 0);          //0 1  3
-    GD.wr32(REG_PCLK_POL, 0);         //1, 0    0 to off vertical lines on horizontal gradients
-    GD.wr32(REG_CSPREAD, 1);          //1,0
+    
+	GD.wr32(REG_PCLK_POL, 1);         //1, 0    0 to off vertical lines on horizontal gradients    
+    GD.wr32(REG_CSPREAD, 0);          //1,0
     GD.wr32(REG_DITHER, 1);           //1, 0
-	//GD.wr32(REG_OUTBITS, 0x360);      //0x360  0xff0
+	GD.wr32(REG_OUTBITS, 0x360);      //0x360  0xff0
 		
 	//cmd_regwrite(REG_PWM_DUTY, 128);
 	
@@ -802,7 +846,7 @@ if (SizeFT813==52){
     GD.wr32(REG_PCLK_POL, 1);
     GD.wr32(REG_CSPREAD, 0);
     GD.wr32(REG_DITHER, 1);
-    GD.wr16(REG_TOUCH_CONFIG, 0x05D1);
+    //GD.wr16(REG_TOUCH_CONFIG, 0x05D1);
 }
 //TFT MO BT815 5"
 
@@ -914,10 +958,12 @@ if (SizeFT813==5)
     GD.wr32(REG_VSYNC0, 0);
     GD.wr32(REG_VSYNC1, 10);
 
+	//GD.wr32(REG_SWIZZLE, 0);//3 for GD2
+
     GD.wr32(REG_PCLK, 2);
     GD.wr32(REG_PCLK_POL, 0);
-    GD.wr32(REG_CSPREAD, 0);       // 1
-    GD.wr32(REG_DITHER, 1);        // 1
+    GD.wr32(REG_CSPREAD, 0);       
+    GD.wr32(REG_DITHER, 1);        
   }
 
   }
@@ -941,36 +987,40 @@ if (SizeFT813==5)
   cmd_regwrite(REG_PWM_DUTY, 128);
   flush();
 
-#if (EVETFTonTeensyX==1)
-{
+//#if (EVETFTonTeensyX==1)
+#ifdef TEENSYDUINO  	  	
   if ((EEPROM.read(0) == 0)) 
    {
       self_calibrate();
       for (int i = 0; i < 24; i++)
         {
          EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_A + i));
-		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_B + i));
-		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_C + i));
-		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_D + i));
-		 //EEPROM.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_E + i));
         }
-      EEPROM.write(0, 0x1);  // is written!
+      EEPROM.write(0, 0x1);
     } else {
       for (int i = 0; i < 24; i++)
         {
          GDTR.wr(REG_TOUCH_TRANSFORM_A + i, EEPROM.read(1 + i));
-		 //GDTR.wr(REG_TOUCH_TRANSFORM_B + i, EEPROM.read(1 + i));
-		 //GDTR.wr(REG_TOUCH_TRANSFORM_C + i, EEPROM.read(1 + i));
-		 //GDTR.wr(REG_TOUCH_TRANSFORM_D + i, EEPROM.read(1 + i));
-		 //GDTR.wr(REG_TOUCH_TRANSFORM_E + i, EEPROM.read(1 + i));
-		 
         }
     }
-}	
 #endif
-  
 
-  //GDTR.wr16(REG_CTOUCH_MODE, 3);
+#if defined(ARDUINO_ARCH_STM32)
+AT24Cxx eep(i2c_address, 32);
+if (eep.read(0) != 0x1) {
+self_calibrate();
+      for (int i = 0; i < 24; i++) 
+      {eep.write(1 + i, GDTR.rd(REG_TOUCH_TRANSFORM_A + i));
+      }
+      eep.write(0, 0x1);  
+    } else {
+           for (int i = 0; i < 24; i++)
+           {
+           GDTR.wr(REG_TOUCH_TRANSFORM_A + i, eep.read(1 + i));
+           }
+    }
+#endif
+
   GDTR.wr16(REG_TOUCH_RZTHRESH, 1200);
 
   rseed = 0x77777777;
@@ -983,7 +1033,6 @@ if (SizeFT813==5)
   ClearColorRGB(0x005500);
   Clear();
    cmd_text(w / 2, h / 2, 30, OPT_CENTER, "FT81XMania.com");
-   //cmd_text(w / 2, h / 2, 30, OPT_CENTER, "AGASE S de RL de CV");
    cmd_spinner(w / 2, (h / 2)+ 0.1*h, 1, 0);
   swap();
   End();
@@ -993,10 +1042,40 @@ if (SizeFT813==5)
 
 
 void GDClass::self_calibrate(void) {
+	
+  #define RAM_TP1 0
+    static const unsigned char PROGMEM Tp1[] = 
+  {
+    #include "Tp1.h"
+  };
+
+	
   cmd_dlstart();
+  
+  GD.cmd_inflate(RAM_TP1);
+  //GD.cmd_memwrite(RAM_TP1);
+  GD.copy(Tp1, sizeof(Tp1));
+  GD.BitmapHandle(0);
+  GD.BitmapSource(0);
+  GD.BitmapLayout(ARGB1555, 170, 122);
+  GD.BitmapSize(NEAREST, BORDER, BORDER, 85, 122); 
+ 
   ClearColorRGB(0x350035);
   Clear();
-  cmd_text(w / 2, h / 2, 30, OPT_CENTER, "please tap on the dot");
+  
+  GD.Begin(BITMAPS);
+  ColorRGB(255,255,0);  
+  GD.ColorA(85);
+   GD.Vertex2ii((GD.w / 2)-50, (GD.h / 2)-50, 0, 0);
+  GD.ColorA(255);
+  ColorRGB(255,255,255);  
+
+  cmd_text(GD.w / 2, GD.h / 2, 29, OPT_CENTERX, "please tap on the dot");
+
+  cmd_bgcolor(0x0000ff);
+  cmd_fgcolor(0x00ff00);  
+  
+  
   cmd_calibrate();
   finish();
   cmd_loadidentity();
@@ -1561,6 +1640,49 @@ void GDClass::cmd_number(int16_t x, int16_t y, byte font, uint16_t options, uint
   cprim = BITMAPS;
 }
 
+#if defined(ARDUINO_ARCH_STM32)
+void GDClass::printNfloat(int16_t x, int16_t y, float f, int16_t Presc, byte font) {
+ //Parte entera
+ cmd_number(x - 2, y, font, OPT_RIGHTX | OPT_SIGNED, int(f));
+ //Parte entera
+
+ Presc = abs(Presc);
+ 
+// Punto y parte decimal
+if (Presc==1){
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(10 * abs(f))); // 1 decimal
+ }  
+if (Presc==2){
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(100 * abs(f))); // 2 decimales
+ }
+if (Presc==3){  
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(1000 * abs(f))); //3 decimales
+ }
+if (Presc==4){  
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(10000 * abs(f))); //4 decimales
+ }
+if (Presc==5){  
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(100000 * abs(f))); //5 decimales
+ }
+if (Presc==6){
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(1000000 * abs(f))); //6 decimales
+ }
+if (Presc==7){
+ cmd_text(  x,     y, font, 0, ".");
+ cmd_number(x + 9, y, font, Presc, int(10000000 * abs(f))); //7 decimales
+ }
+// Punto y parte decimal
+}
+#endif
+
+
+#ifdef TEENSYDUINO
 void GDClass::printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte font, uint16_t options)
 {
    char floatNumber[50];
@@ -1573,6 +1695,7 @@ void GDClass::printNfloat(int16_t x, int16_t y, double f, int16_t Presc, byte fo
    //cmd_text(x, y, font, OPT_RIGHTX, floatNumber);
    //cmd_text(x, y, font, OPT_CENTER, floatNumber);
 }
+#endif
 
 void GDClass::Rect_Empty(int16_t xi, int16_t yi,int16_t xPX, int16_t yPX, int16_t RF, int16_t GF, int16_t BF)
 //void GDClass::Rect_Empty(int16_t xi, int16_t yi,int16_t xPX, int16_t yPX)
@@ -1667,11 +1790,13 @@ void GDClass::cmd_testcard(void) {
   cFFFFFF(0x61);
 }
 
+#endif  
+//BT817
+
 void GDClass::cmd_logo(void) {
   cFFFFFF(0x31);
 }
-#endif  
-//BT817
+
 void GDClass::cmd_sketch(int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t ptr, uint16_t format) {
   cFFFFFF(0x30);
   ch(x);
@@ -1931,23 +2056,23 @@ void GDClass::get_inputs(void) {
   inputs.touching = (inputs.x != -32768);
   inputs.xytouch.set(PIXELS(inputs.x), PIXELS(inputs.y));
 
-  uint8_t wii_raw[20];
-  GDTR.daz_rd(wii_raw, sizeof(wii_raw));
-  if (wii_raw[0] == 0xda) {
+//  uint8_t wii_raw[20];
+//  GDTR.daz_rd(wii_raw, sizeof(wii_raw));
+//  if (wii_raw[0] == 0xda) {
     // See https://wiibrew.org/wiki/Wiimote/Extension_Controllers/Classic_Controller
-    for (int i = 0; i < 2; i++) {
-      uint8_t *r = &wii_raw[2 + 12 * i];
-      struct _wii *w = &inputs.wii[i];
-      w->active = 1;
-      w->buttons = r[4] | (r[5] << 8);
-      w->l.x = (r[0] & 63);
-      w->l.y = (r[1] & 63);
-      w->r.x = (((r[0] >> 6) & 3) << 3) |
-               (((r[1] >> 6) & 3) << 1) |
-               (((r[2] >> 7) & 1));
-      w->r.y = (r[2] & 31);
-    }
-  }
+//    for (int i = 0; i < 2; i++) {
+//      uint8_t *r = &wii_raw[2 + 12 * i];
+//      struct _wii *w = &inputs.wii[i];
+//      w->active = 1;
+//      w->buttons = r[4] | (r[5] << 8);
+//      w->l.x = (r[0] & 63);
+//      w->l.y = (r[1] & 63);
+//      w->r.x = (((r[0] >> 6) & 3) << 3) |
+//               (((r[1] >> 6) & 3) << 1) |
+//               (((r[2] >> 7) & 1));
+//      w->r.y = (r[2] & 31);
+//    }
+//  }
 
 #ifdef DUMP_INPUTS
   for (size_t i = 0; i < sizeof(inputs); i++) {
@@ -2092,14 +2217,68 @@ static const PROGMEM uint8_t __bsod_badfile[44] = {
 
 void GDClass::alert()
 {
-  GDTR.coprocsssor_recovery();
-  if (ft8xx_model < 2)
-    copy(__bsod, sizeof(__bsod));
-  else
-    copy(__bsod_815, sizeof(__bsod_815));
+ // GDTR.coprocsssor_recovery();
+ // if (ft8xx_model < 2)
+ //   copy(__bsod, sizeof(__bsod));
+ // else
+ //   copy(__bsod_815, sizeof(__bsod_815));
+  begin();
+  cmd_dlstart();
+  
+  #define RAM_RAD1 0
+    static const unsigned char PROGMEM Rad1[] = {
+    #include "Rad1.h"
+  };
+ cmd_inflate(RAM_RAD1);
+  copy(Rad1, sizeof(Rad1));
+  GD.BitmapHandle(0);
+  GD.BitmapSource(0);
+  GD.BitmapLayout(ARGB1555, 400, 200);
+  GD.BitmapSize(NEAREST, BORDER, BORDER, 200, 200);
+
+  if (BT8XX==1)
+ {
+  Serial.print("FT80");  Serial.println(BT8XX, HEX); //Serial.println(BT8XX, HEX);
+  GDTR.wr(REG_ROTATE, ROTACION);
+  Serial.println(ROTACION);
+ }
+ 
+ if (BT8XX==19)
+ {
+  Serial.print("FT8");  Serial.println(BT8XX, HEX); //Serial.println(BT8XX, HEX);
+  cmd_setrotate(ORIENTACION);
+  Serial.println(ORIENTACION);
+ }
+ 
+ if (BT8XX>19)
+ {
+  Serial.print("BT8");  Serial.println(BT8XX, HEX); //Serial.println(BT8XX, HEX);
+  cmd_setrotate(ORIENTACION);
+  Serial.println(ORIENTACION);
+ } 
+
+
+  ClearColorRGB(0x650000);
+  Clear();
+
+  GD.ColorA(85);
+   GD.Begin(BITMAPS);
+   GD.Vertex2ii((GD.w / 2)-100, (GD.h / 2)-100, 0);
+   ColorRGB(255,255,0);
+  GD.ColorA(255);
+
+  cmd_text(GD.w / 2, (GD.h / 2)+29, 29, OPT_CENTER, "Invalid operation");
+  cmd_text(GD.w / 2, (GD.h / 2)+12, 20, OPT_CENTER, "Check the image name");
+  cmd_text(GD.w / 2, (GD.h / 2)-0, 20, OPT_CENTER, "Check the type of the image file");
+  cmd_text(GD.w / 2, (GD.h / 2)-12, 20, OPT_CENTER, "Is it the image(s) file(s) on the microSD card?");
+  cmd_text(GD.w / 2, (GD.h / 2)+29+22, 20, OPT_CENTER, "GD.swap() is lost?");
+  cmd_text(GD.w / 2, (GD.h / 2)+29+50, 20, OPT_CENTER, "XT8XX suggests: take a break and check again!");
+
   swap();
-  GD.finish();
-  for (;;) ;
+  //GD.finish();
+  finish();
+  for (;;) 
+  ;
 }
 
 void GDClass::safeload(const char *filename)
