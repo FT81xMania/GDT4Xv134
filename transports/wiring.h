@@ -47,8 +47,8 @@ delay(100);
     digitalWrite(cs, HIGH);
 
  #if defined(ARDUINO_TEENSY32)
-	//pinMode(SD_PIN, OUTPUT);
-    //digitalWrite(SD_PIN, HIGH);
+	pinMode(SD_PIN, OUTPUT);
+    digitalWrite(SD_PIN, HIGH);
   #endif
 
     SPI.begin();
@@ -86,13 +86,13 @@ delay(100);
       hostcmd(0x68);
       delay(120);
       digitalWrite(cs, LOW);
-      Serial.println(SPI.transfer(0x10), HEX);
-      Serial.println(SPI.transfer(0x24), HEX);
-      Serial.println(SPI.transfer(0x00), HEX);
-      Serial.println(SPI.transfer(0xff), HEX);
-      Serial.println(SPI.transfer(0x00), HEX);
-      Serial.println(SPI.transfer(0x00), HEX);
-      Serial.println();
+      //Serial.println(SPI.transfer(0x10), HEX);
+      //Serial.println(SPI.transfer(0x24), HEX);
+      //Serial.println(SPI.transfer(0x00), HEX);
+      //Serial.println(SPI.transfer(0xff), HEX);
+      //Serial.println(SPI.transfer(0x00), HEX);
+      //Serial.println(SPI.transfer(0x00), HEX);
+      //Serial.println();
 
       digitalWrite(cs, HIGH);
       delay(2000);
@@ -166,9 +166,9 @@ delay(100);
     }
     wp += n;
     freespace -= n;
-#if defined(ARDUINO_ARCH_STM32)
-    SPI.write(s, n);
-#else
+//#if defined(ARDUINO_ARCH_STM32)
+//    SPI.write(s, n);
+//#else
     while (n > 8) {
       n -= 8;
       SPI.transfer(*s++);
@@ -182,7 +182,7 @@ delay(100);
     }
     while (n--)
       SPI.transfer(*s++);
-#endif
+//#endif
   }
 
   void flush() {
@@ -396,14 +396,15 @@ void wr_n(uint32_t addr, byte *src, uint16_t n)
     } while (freespace < n);
     stream();
   }
-  void daz_rd(uint8_t *s, size_t n) {
-    __end();
-    digitalWrite(10, LOW);
-    memset(s, 0xff, n);
-    SPI.transfer((char*)s, n);
-    digitalWrite(10, HIGH);
-    resume();
-  }
+
+//  void daz_rd(uint8_t *s, size_t n) {
+//    __end();
+//    digitalWrite(10, LOW);
+//    memset(s, 0xff, n);
+//    SPI.transfer((char*)s, n);
+//    digitalWrite(10, HIGH);
+//    resume();
+//  }
 
   byte streaming;
   uint16_t wp;
